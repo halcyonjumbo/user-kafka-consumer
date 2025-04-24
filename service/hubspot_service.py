@@ -1,21 +1,29 @@
+import requests
 from dto.request.create_contact_dto import CreateContactDto, Properties
 from dto.request.create_user_kafka_dto import CreateUserKafkaDto
+from models.hubspot_api_log import HubspotApiLog
 from repository.user_master_mapping_repo import UserMasterMappingRepository
+from repository.hubspot_api_log_repo import HubspotApiLogRepository
 from service.http_service import HttpService
 from config.http import HUBSPOT_CONFIG
 from repository.redshift_connection import RedshiftConnection
+from util.logger_util import LoggerUtil
 
 class HubspotService:
     """Class for Hubspot service"""
 
     http_service: HttpService
     user_master_mapping_repo: UserMasterMappingRepository
+    hubspot_api_log_repo: HubspotApiLogRepository
+    logger: LoggerUtil
 
-    def __init__(self, http_service: HttpService = None, user_master_mapping_repo: UserMasterMappingRepository = None):
+    def __init__(self, http_service: HttpService = None, user_master_mapping_repo: UserMasterMappingRepository = None, hubspot_api_log_repo: HubspotApiLogRepository = None): 
             self.http_service = http_service or HttpService()
             self.user_master_mapping_repo = user_master_mapping_repo or UserMasterMappingRepository(RedshiftConnection())
-        
-    def prepare_create_contact_dto(self, create_user_kafka_dto: CreateUserKafkaDto):
+            self.hubspot_api_log_repo = hubspot_api_log_repo or HubspotApiLogRepository(RedshiftConnection())
+            self.logger = LoggerUtil().get_logger(self.__class__.__name__)
+
+    def prepare_create_contact_dto(self, create_user_kafka_dto: CreateUserKafkaDto) -> CreateContactDto:
         """Prepare create contact dto"""
         properties = Properties(
             country_code=create_user_kafka_dto.user_details.country_code,
@@ -32,9 +40,10 @@ class HubspotService:
             properties=properties
         )
     
-    def create_user_in_hubspot(self, create_user_kafka_dto: CreateUserKafkaDto):
+    def create_user_in_hubspot(self, create_user_kafka_dto: CreateUserKafkaDto) -> requests.Response:
         """Create user in Hubspot"""
         try:
+            request_body = self.prepare_create_contact_dto(create_user_kafka_dto).model_dump()
             response = self.http_service.call(
                 method='POST',
                 url=f'{HUBSPOT_CONFIG["base_url"]}/crm/v3/objects/contacts',
@@ -43,13 +52,20 @@ class HubspotService:
                     'Accept': 'application/json',
                     'Authorization': f'Bearer {HUBSPOT_CONFIG["api_key"]}'
                 },
-                data=self.prepare_create_contact_dto(create_user_kafka_dto).model_dump()
+                data=request_body
             )
+            if response.status_code != 200:
+                self.hubspot_api_log_repo.create(HubspotApiLog(
+                    endpoint='create_contact',
+                    request_body=request_body,
+                    response=response.json(),
+                    status_code=response.status_code
+                ))
             return response
         except Exception as e:
             raise Exception(f"Failed to create user in Hubspot: {str(e)}")
 
-    def create_user_kafka(self, create_user_kafka_dto: CreateUserKafkaDto):
+    def create_user_kafka(self, create_user_kafka_dto: CreateUserKafkaDto) -> None:
         """Find user in User Master Mapping table and create user in Hubspot if not exists"""
         try:
             user_master_mapping = self.user_master_mapping_repo.find_by_docquity_database_usercode_or_id(create_user_kafka_dto.user_details.user_code, 0)
@@ -58,9 +74,7 @@ class HubspotService:
                 if response.status_code == 200:
                     hubspot_id = response.json().get('id')
                     self.user_master_mapping_repo.create(hubspot_id, 0, create_user_kafka_dto.user_details.user_code)
-                else:
-                    raise Exception("Failed to create user in Hubspot")
             else:
-                raise Exception("User already exists in Hubspot")
+                self.logger.info(f"User already exists in Hubspot: {user_master_mapping.usercode}")
         except Exception as e:
             raise Exception(f"Failed to create user Kafka: {str(e)}")

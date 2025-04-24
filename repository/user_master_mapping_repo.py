@@ -28,7 +28,7 @@ class UserMasterMappingRepository:
             raise Exception(f"Failed to store user master mapping in Redshift: {str(e)}")
          
         
-    def find_by_docquity_database_usercode_or_id(self, usercode, docquity_database_id):
+    def find_by_docquity_database_usercode_or_id(self, usercode, docquity_database_id) -> UserMasterMapping:
         """Find Users Master Mapping by docquity_database_id or usercode"""
         try:
             if usercode is not None:
@@ -44,7 +44,7 @@ class UserMasterMappingRepository:
             else:
                 raise Exception("Either usercode or docquity_database_id must be provided")
             
-            return result is not None
+            return result
 
         except SQLAlchemyError as e:
             raise Exception(f"Failed to find user master mapping: {str(e)}")
