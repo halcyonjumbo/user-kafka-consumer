@@ -4,33 +4,31 @@ from typing import Optional
 class UserDetails(BaseModel):
     """Class for User Details"""
     email: Optional[str] = None
-    first_name: Optional[str] = Field(None, alias="firstName")
-    middle_name: Optional[str] = Field(None, alias="middleName")
-    last_name: Optional[str] = Field(None, alias="lastName")
+    firstName: Optional[str] = None
+    middleName: Optional[str] = None
+    lastName: Optional[str] = None
     gender: Optional[str] = None
-    country_code: Optional[str] = Field(None, alias="countryCode")
-    phone_no: Optional[str] = Field(None, alias="phoneno")
-    user_type: Optional[str] = Field(None, alias="userType")
-    profile_pic_bucket: Optional[str] = Field(None, alias="profilePicBucket")
-    profile_pic_file_type: Optional[str] = Field(None, alias="profilePicFileType")
-    verification_status: Optional[str] = Field(None, alias="verificationStatus")
-    user_status: Optional[str] = Field(None, alias="userStatus")
+    countryCode: Optional[str] = None
+    phoneno: Optional[str] = None
+    userType: Optional[str] = None
+    profilePic: Optional[str] = None
+    profilePicBucket: Optional[str] = None
+    profilePicFileType: Optional[str] = None
+    verificationStatus: Optional[str] = None
+    user_status: Optional[str] = None
     uuid: Optional[str] = None
-    user_code: Optional[str] = Field(None, alias="userCode")
+    userCode: Optional[str] = None
     module: Optional[str] = None
-    created_by: Optional[str] = Field(None, alias="createdBy")
-    custom_id: Optional[str] = Field(None, alias="customId")
+    createdBy: Optional[str] = None
+    customId: Optional[str] = None
     
 class CreateUserKafkaDto(BaseModel):
     """Class for Create User Kafka DTO"""
-    created_by: Optional[str] = Field(None, alias="createdBy")
-    module: Optional[str] = Field(None, alias="module")
-    user_details: Optional[UserDetails] = Field(None, alias="userDetails")
-    platform_id: Optional[str] = Field(None, alias="platformId")
-    platform_name: Optional[str] = Field(None, alias="platformName")
-    is_journey_completed: Optional[bool] = Field(False, alias="isJourneyCompleted")
-    sub_module: Optional[str] = Field(None, alias="subModule")
-    is_purple: Optional[bool] = Field(False, alias="isPurple")
-
-class Config:
-    allow_population_by_field_name = True
+    createdBy: Optional[str] = None
+    module: Optional[str] = None
+    userDetails: Optional[UserDetails] = None
+    platformId: Optional[str] = None
+    platformName: Optional[str] = None
+    isJourneyCompleted: Optional[bool] = False
+    subModule: Optional[str] = None
+    isPurple: Optional[bool] = False
