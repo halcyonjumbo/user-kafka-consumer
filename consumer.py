@@ -6,7 +6,7 @@ from config.kafka import KAFKA_CONFIG, TOPIC_CONFIG
 from repository.redshift_connection import RedshiftConnection
 from dto.request.create_user_kafka_dto import CreateUserKafkaDto, UserDetails
 from service.hubspot_service import HubspotService
-from repository.user_master_mapping_repo import UserMasterMappingRepository
+from repository.contacts_master_repo import ContactsMasterRepository
 from util.logger_util import LoggerUtil
 from service.http_service import HttpService
 
@@ -27,8 +27,8 @@ def process_kafka_messages():
     # Initialize components
     redshift_conn = RedshiftConnection()
     http_service = HttpService()
-    user_master_mapping_repo = UserMasterMappingRepository(redshift_conn)
-    hubspot_service = HubspotService(http_service, user_master_mapping_repo)
+    contacts_master_repo = ContactsMasterRepository(redshift_conn)
+    hubspot_service = HubspotService(http_service, contacts_master_repo)
 
     # Set up signal handlers
     signal.signal(signal.SIGINT, signal_handler)
