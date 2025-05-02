@@ -1,4 +1,4 @@
-from requests import Session
+import redshift_connector
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.engine.url import URL
 from sqlalchemy.orm import sessionmaker
@@ -11,7 +11,7 @@ class RedshiftConnection:
     _engine = None
     _Session = None
     _metadata = None
-
+    _conn = None
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(RedshiftConnection, cls).__new__(cls, *args, **kwargs)
@@ -33,6 +33,15 @@ class RedshiftConnection:
             cls._Session = sessionmaker(bind=cls._engine)
             cls._metadata = MetaData(bind=cls._Session().bind)
 
+            cls._conn = redshift_connector.connect(
+                host=DB_CONFIG['host'],
+                database=DB_CONFIG['database'],
+                user=DB_CONFIG['user'],
+                password=DB_CONFIG['password'],
+                port=5439
+            )
+
+
         return cls._instance
 
     @classmethod
@@ -43,6 +52,13 @@ class RedshiftConnection:
         return cls._Session()
 
     @classmethod
+    def get_connection(cls):
+        """Get a new connection"""
+        if cls._conn is None:
+            cls._instance = RedshiftConnection()
+        return cls._conn
+
+    @classmethod
     def close_connection(cls):
         """Close the Redshift connection"""
         if cls._engine:
@@ -51,3 +67,4 @@ class RedshiftConnection:
             cls._engine = None
             cls._Session = None
             cls._metadata = None
+            cls._conn = None

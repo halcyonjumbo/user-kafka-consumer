@@ -1,3 +1,4 @@
+import json
 import requests
 from dto.request.create_contact_dto import CreateContactDto, Properties
 from dto.request.create_user_kafka_dto import CreateUserKafkaDto
@@ -55,13 +56,14 @@ class HubspotService:
                 },
                 json=request_body
             )
-            if response.status_code != 200:
-                self.hubspot_api_log_repo.create(HubspotApiLog(
+            if response.status_code != 201:
+                self.hubspot_api_log_repo.insert(HubspotApiLog(
                     endpoint='create_contact',
-                    request_body=request_body,
+                    request=json.dumps(request_body),
                     response=response.json(),
-                    status_code=response.status_code
+                    status=response.status_code
                 ))
+            self.logger.info(f"User created in Hubspot: {response.json()}")
             return response
         except Exception as e:
             raise Exception(f"Failed to create user in Hubspot: {str(e)}")

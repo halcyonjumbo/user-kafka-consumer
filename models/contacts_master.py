@@ -93,3 +93,4 @@ class ContactsMaster(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     deleted = Column(Boolean, default=False)
     docquity_database_id = Column(String)
+    usercode = Column(String(50))

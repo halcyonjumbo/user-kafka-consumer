@@ -9,24 +9,6 @@ class ContactsMasterRepository:
     def __init__(self, redshift_connector: RedshiftConnection):
         self.session = redshift_connector.get_session()
 
-    def create(self, hubspot_id, docquity_database_id, usercode):
-        """Create Contacts Master"""
-        try:
-            contacts_master = ContactsMaster(
-                hubspot_id=hubspot_id,
-                docquity_database_id=docquity_database_id,
-                usercode=usercode,
-                created_at=datetime.now(),
-                updated_at=datetime.now()
-            )
-            
-            self.session.add(contacts_master)
-            self.session.commit()
-            
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise Exception(f"Failed to store user master mapping in Redshift: {str(e)}")
-         
         
     def find_by_docquity_database_usercode_or_id(self, usercode, docquity_database_id) -> ContactsMaster:
         """Find Users Master Mapping by docquity_database_id or usercode"""
@@ -47,5 +29,5 @@ class ContactsMasterRepository:
             return result
 
         except SQLAlchemyError as e:
-            raise Exception(f"Failed to find user master mapping: {str(e)}")
+            raise Exception(f"Failed to find contacts master : {str(e)}")
     
