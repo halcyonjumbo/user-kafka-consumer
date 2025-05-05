@@ -1,5 +1,9 @@
 from typing import Dict, Any
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Database connection configuration
 DB_CONFIG: Dict[str, Any] = {

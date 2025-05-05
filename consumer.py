@@ -2,6 +2,7 @@ import json
 import signal
 import sys
 from kafka import KafkaConsumer
+from dotenv import load_dotenv
 from config.kafka import KAFKA_CONFIG, TOPIC_CONFIG
 from repository.redshift_connection import RedshiftConnection
 from dto.request.create_user_kafka_dto import CreateUserKafkaDto, UserDetails
@@ -9,6 +10,9 @@ from service.hubspot_service import HubspotService
 from repository.contacts_master_repo import ContactsMasterRepository
 from util.logger_util import LoggerUtil
 from service.http_service import HttpService
+
+# Load environment variables
+load_dotenv()
 
 logger = LoggerUtil().get_logger(__name__)
 
@@ -34,7 +38,6 @@ def process_kafka_messages():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-
     try:
         logger.info("--------------*************************------------------")
         logger.info("Starting Kafka consumer. Press CTRL+C to exit.")
@@ -44,6 +47,10 @@ def process_kafka_messages():
                 messages = consumer.poll(timeout_ms=1000)
                 for topic_partition, records in messages.items():
                     for record in records:
+                        # Get message key
+                        message_key = record.key.decode('utf-8') if record.key else None
+                        logger.info(f"Processing message with key: {message_key}")
+                        
                         # Parse Kafka message
                         event_data = json.loads(json.loads(record.value.decode('utf-8')))
                         
@@ -60,8 +67,23 @@ def process_kafka_messages():
                                 module=event_data.get("module")
                             )
 
-                        # Consumser Handler
-                        hubspot_service.create_user_kafka(create_user_dto)
+                        # Validate conditions before processing user in Hubspot
+                        user_details = create_user_dto.userDetails
+                        valid_countries = ('ID', 'MY', 'PH', 'TH', 'SG')
+                        
+                        if (user_details.countryCode in valid_countries and 
+                            user_details.userType.upper() in ['DOCTOR', 'DENTIST']):
+                            if message_key == 'group_user_create':
+                                logger.info(f"Creating new user in Hubspot: {user_details.userCode}")
+                                hubspot_service.create_user_kafka(create_user_dto)
+                            elif message_key == 'group_user_update':
+                                logger.info(f"Updating user in Hubspot: {user_details.userCode}")
+                                hubspot_service.update_user_kafka(create_user_dto)
+                            else:
+                                logger.warning(f"Unknown message key: {message_key}. Skipping message.")
+                        else:
+                            logger.info(f"Skipping user processing in Hubspot - Conditions not met for user: {user_details.userCode}")
+                            logger.info(f"countryCode: {user_details.countryCode}, phoneno: {user_details.phoneno}, userType: {user_details.userType}")
                         
             except Exception as e:
                 logger.error(f"Error processing message: {str(e)}")
