@@ -41,7 +41,68 @@ class HubspotService:
             properties=properties
         )
 
-    
+    def find_hubspot_contact_id(self, user_code: str) -> str:
+        """Find Hubspot contact ID by user code"""
+        try:
+            response = self.http_service.call(
+                method='GET',
+                endpoint=f'{HUBSPOT_CONFIG["base_url"]}/crm/v3/objects/contacts/search',
+                headers={
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': f'Bearer {HUBSPOT_CONFIG["api_key"]}'
+                },
+                json={
+                    "filterGroups": [
+                        {
+                            "filters": [
+                                {
+                                    "propertyName": "usercode",
+                                    "operator": "EQ",
+                                    "value": user_code
+                                }
+                            ]
+                        }
+                    ]
+                }
+            )
+            
+            if response.status_code == 200:
+                results = response.json().get('results', [])
+                if results:
+                    return results[0]['id']
+            return None
+        except Exception as e:
+            self.logger.error(f"Error finding Hubspot contact ID: {str(e)}")
+            return None
+
+    def update_user_in_hubspot(self, contact_id: str, create_user_kafka_dto: CreateUserKafkaDto) -> requests.Response:
+        """Update user in Hubspot"""
+        try:
+            request_body = self.prepare_create_contact_dto(create_user_kafka_dto).model_dump()
+            response = self.http_service.call(
+                method='PATCH',
+                endpoint=f'{HUBSPOT_CONFIG["base_url"]}/crm/v3/objects/contacts/{contact_id}',
+                headers={
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': f'Bearer {HUBSPOT_CONFIG["api_key"]}'
+                },
+                json=request_body
+            )
+            
+            if response.status_code != 200:
+                self.hubspot_api_log_repo.insert(HubspotApiLog(
+                    endpoint='update_contact',
+                    request=json.dumps(request_body),
+                    response=response.json(),
+                    status=response.status_code
+                ))
+            self.logger.info(f"User updated in Hubspot: {response.json()}")
+            return response
+        except Exception as e:
+            raise Exception(f"Failed to update user in Hubspot: {str(e)}")
+
     def create_user_in_hubspot(self, create_user_kafka_dto: CreateUserKafkaDto) -> requests.Response:
         """Create user in Hubspot"""
         try:
@@ -78,3 +139,17 @@ class HubspotService:
                 self.logger.info(f"User already exists in Hubspot: {contacts_master.usercode}")
         except Exception as e:
             raise Exception(f"Failed to create user Kafka: {str(e)}")
+
+    def update_user_kafka(self, create_user_kafka_dto: CreateUserKafkaDto) -> None:
+        """Update existing user in Hubspot based on user code"""
+        try:
+            user_code = create_user_kafka_dto.userDetails.userCode
+            contact_id = self.find_hubspot_contact_id(user_code)
+            
+            if contact_id:
+                self.update_user_in_hubspot(contact_id, create_user_kafka_dto)
+                self.logger.info(f"Successfully updated user in Hubspot: {user_code}")
+            else:
+                self.logger.warning(f"User not found in Hubspot for update: {user_code}")
+        except Exception as e:
+            raise Exception(f"Failed to update user Kafka: {str(e)}")
