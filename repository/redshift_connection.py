@@ -1,4 +1,6 @@
-from sqlalchemy import create_engine
+import redshift_connector
+from sqlalchemy import MetaData, create_engine
+from sqlalchemy.engine.url import URL
 from sqlalchemy.orm import sessionmaker
 from config.database import DB_CONFIG
 
@@ -8,29 +10,38 @@ class RedshiftConnection:
     _instance = None
     _engine = None
     _Session = None
-
+    _metadata = None
+    _conn = None
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(RedshiftConnection, cls).__new__(cls, *args, **kwargs)
             
-            # Create connection string with Redshift-specific parameters
-            connection_string = f"postgresql+psycopg2://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
-            
-            # Create engine with Redshift-specific configurations
-            cls._engine = create_engine(
-                connection_string,
-                connect_args={
-                    'options': f'-c search_path={DB_CONFIG["schema"]}',
-                    'sslmode': 'require'  # Enable SSL for security
-                },
-                # Disable SQLAlchemy features that aren't supported by Redshift
-                pool_pre_ping=True,
-                pool_recycle=3600,
-                # Disable standard_conforming_strings check
-                connect_args={'options': '-c standard_conforming_strings=off'}
+
+
+            # build the sqlalchemy URL
+            url = URL.create(
+            drivername='redshift+redshift_connector', # indicate redshift_connector driver and dialect will be used
+            host=DB_CONFIG['host'], # Amazon Redshift host
+            port=DB_CONFIG['port'], # Amazon Redshift port
+            database=DB_CONFIG['database'], # Amazon Redshift database
+            username=DB_CONFIG['user'], # Amazon Redshift username
+            password=DB_CONFIG['password'], # Amazon Redshift password
             )
-            
+
+            cls._engine = create_engine(url)
+                        
             cls._Session = sessionmaker(bind=cls._engine)
+            cls._metadata = MetaData(bind=cls._Session().bind)
+
+            cls._conn = redshift_connector.connect(
+                host=DB_CONFIG['host'],
+                database=DB_CONFIG['database'],
+                user=DB_CONFIG['user'],
+                password=DB_CONFIG['password'],
+                port=5439
+            )
+
+
         return cls._instance
 
     @classmethod
@@ -41,6 +52,13 @@ class RedshiftConnection:
         return cls._Session()
 
     @classmethod
+    def get_connection(cls):
+        """Get a new connection"""
+        if cls._conn is None:
+            cls._instance = RedshiftConnection()
+        return cls._conn
+
+    @classmethod
     def close_connection(cls):
         """Close the Redshift connection"""
         if cls._engine:
@@ -48,3 +66,5 @@ class RedshiftConnection:
             cls._instance = None
             cls._engine = None
             cls._Session = None
+            cls._metadata = None
+            cls._conn = None

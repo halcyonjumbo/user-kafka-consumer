@@ -5,11 +5,11 @@ class Properties(BaseModel):
     """Class for User Properties"""
     country_code: Optional[str] = None
     email: Optional[str] = None
-    mobile_phone: Optional[str] = Field(None, alias="mobilephone")
-    last_name: Optional[str] = Field(None, alias="lastname")
-    first_name: Optional[str] = Field(None, alias="firstname")
-    docquity_database_id: Optional[int] = Field(None, alias="docquity_database_id")
-    user_code: Optional[str] = Field(None, alias="usercode")
+    mobilephone: Optional[str] = None
+    lastname: Optional[str] = None
+    firstname: Optional[str] = None
+    docquity_database_id: Optional[int] = None
+    usercode: Optional[str] = None
     specialty: Optional[str] = None
     city: Optional[str] = None
 
